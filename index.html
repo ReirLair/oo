@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Offline Games Hub</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .game-select button {
+      margin: 5px;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .game-select button:hover {
+      background: #444;
+    }
+
+    .game {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .cell {
+      width: 100px;
+      height: 100px;
+      background: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cell:hover {
+      background: #333;
+    }
+
+    canvas {
+      background: #222;
+      margin-top: 10px;
+    }
+
+    .choices button {
+      margin: 5px;
+      padding: 10px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+
+    .choices button:hover {
+      background: #444;
+    }
+
+    button.back {
+      margin-top: 20px;
+      background: #555;
+    }
+
+  </style>
+</head>
+<body>
+  <h1>Offline Games Hub</h1>
+
+  <div class="game-select">
+    <button onclick="showGame('ticTacToe')">Tic-Tac-Toe</button>
+    <button onclick="showGame('rps')">Rock Paper Scissors</button>
+    <button onclick="showGame('snake')">Snake</button>
+  </div>
+
+  <!-- Tic Tac Toe -->
+  <div class="game" id="ticTacToe">
+    <h2>Tic-Tac-Toe</h2>
+    <div class="board" id="board"></div>
+    <div id="message">Your turn: X</div>
+    <button onclick="resetGame()">Reset Game</button>
+    <button class="back" onclick="backToMenu()">Back to Menu</button>
+  </div>
+
+  <!-- Rock Paper Scissors -->
+  <div class="game" id="rps">
+    <h2>Rock Paper Scissors</h2>
+    <div class="choices">
+      <button onclick="playRPS('Rock')">Rock</button>
+      <button onclick="playRPS('Paper')">Paper</button>
+      <button onclick="playRPS('Scissors')">Scissors</button>
+    </div>
+    <div id="rpsResult">Make your choice!</div>
+    <button class="back" onclick="backToMenu()">Back to Menu</button>
+  </div>
+
+  <!-- Snake -->
+  <div class="game" id="snake">
+    <h2>Snake Game</h2>
+    <canvas id="snakeCanvas" width="300" height="300"></canvas>
+    <div>Use Arrow Keys to Play</div>
+    <button class="back" onclick="backToMenu()">Back to Menu</button>
+  </div>
+
+  <script>
+    // Service worker for offline
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+
+    function showGame(gameId) {
+      document.querySelectorAll('.game').forEach(game => game.style.display = 'none');
+      document.getElementById(gameId).style.display = 'block';
+    }
+
+    function backToMenu() {
+      document.querySelectorAll('.game').forEach(game => game.style.display = 'none');
+    }
+
+    // Tic-Tac-Toe
+    const boardElement = document.getElementById('board');
+    const messageElement = document.getElementById('message');
+    let board = ["", "", "", "", "", "", "", "", ""];
+    let currentPlayer = "X";
+    let gameActive = true;
+
+    const winningConditions = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    function checkWinner() {
+      for (const condition of winningConditions) {
+        const [a, b, c] = condition;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+          messageElement.textContent = `Player ${board[a]} wins!`;
+          gameActive = false;
+          return;
+        }
+      }
+      if (!board.includes("")) {
+        messageElement.textContent = "It's a draw!";
+        gameActive = false;
+      }
+    }
+
+    function cellClick(index) {
+      if (!gameActive || board[index]) return;
+      board[index] = currentPlayer;
+      renderBoard();
+      checkWinner();
+      currentPlayer = currentPlayer === "X" ? "O" : "X";
+      if (gameActive) messageElement.textContent = `Your turn: ${currentPlayer}`;
+    }
+
+    function renderBoard() {
+      boardElement.innerHTML = "";
+      board.forEach((cell, index) => {
+        const cellElement = document.createElement('div');
+        cellElement.classList.add('cell');
+        cellElement.textContent = cell;
+        cellElement.onclick = () => cellClick(index);
+        boardElement.appendChild(cellElement);
+      });
+    }
+
+    function resetGame() {
+      board = ["", "", "", "", "", "", "", "", ""];
+      currentPlayer = "X";
+      gameActive = true;
+      messageElement.textContent = "Your turn: X";
+      renderBoard();
+    }
+
+    renderBoard();
+
+    // Rock Paper Scissors
+    function playRPS(playerChoice) {
+      const choices = ['Rock', 'Paper', 'Scissors'];
+      const computerChoice = choices[Math.floor(Math.random() * 3)];
+      let result = '';
+
+      if (playerChoice === computerChoice) result = "It's a draw!";
+      else if (
+        (playerChoice === 'Rock' && computerChoice === 'Scissors') ||
+        (playerChoice === 'Scissors' && computerChoice === 'Paper') ||
+        (playerChoice === 'Paper' && computerChoice === 'Rock')
+      ) result = 'You win!';
+      else result = 'Computer wins!';
+
+      document.getElementById('rpsResult').textContent =
+        `You: ${playerChoice} | Computer: ${computerChoice} => ${result}`;
+    }
+
+    // Snake Game
+    const canvas = document.getElementById('snakeCanvas');
+    const ctx = canvas.getContext('2d');
+    const box = 30;
+    let snake = [{x: 5 * box, y: 5 * box}];
+    let food = {
+      x: Math.floor(Math.random() * 10) * box,
+      y: Math.floor(Math.random() * 10) * box
+    };
+    let direction = null;
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
+      else if (event.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
+      else if (event.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
+      else if (event.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+    });
+
+    function drawSnake() {
+      ctx.fillStyle = "#222";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let part of snake) {
+        ctx.fillStyle = "#0f0";
+        ctx.fillRect(part.x, part.y, box, box);
+      }
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(food.x, food.y, box, box);
+
+      let head = {x: snake[0].x, y: snake[0].y};
+
+      if (direction === 'LEFT') head.x -= box;
+      if (direction === 'UP') head.y -= box;
+      if (direction === 'RIGHT') head.x += box;
+      if (direction === 'DOWN') head.y += box;
+
+      if (head.x === food.x && head.y === food.y) {
+        food = {
+          x: Math.floor(Math.random() * 10) * box,
+          y: Math.floor(Math.random() * 10) * box
+        };
+      } else {
+        snake.pop();
+      }
+
+      if (
+        head.x < 0 || head.y < 0 ||
+        head.x >= canvas.width || head.y >= canvas.height ||
+        snake.some(part => part.x === head.x && part.y === head.y)
+      ) {
+        clearInterval(game);
+        alert('Game Over!');
+      }
+
+      snake.unshift(head);
+    }
+
+    let game = setInterval(drawSnake, 200);
+  </script>
+</body>
+</html>
